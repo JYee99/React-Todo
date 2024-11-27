@@ -1,41 +1,14 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import "./App.css";
+import Form from "./components/Form";
+import Lists from "./components/Lists";
 
-const App = () => {
-  const [todoData, setTodoData] = useState([
-    {
-      id: "1",
-      title: "공부하기",
-      completed: true,
-    },
-    {
-      id: "2",
-      title: "밥 먹기",
-      completed: false,
-    },
-  ]);
+const initialTodoData = localStorage.getItem("todoData")
+  ? JSON.parse(localStorage.getItem("todoData"))
+  : [];
+export default function App() {
+  const [todoData, setTodoData] = useState(initialTodoData);
   const [value, setValue] = useState("");
-
-  const btnStyle = () => ({
-    color: "#fff",
-    border: "none",
-    padding: "5px, 9px",
-    borderRadius: "50%",
-    cursor: "pointer",
-    float: "right",
-  });
-
-  const getStyle = (completed) => ({
-    padding: "10px",
-    borderBottom: "1px #eee solid",
-    textDecoration: completed ? "line-through" : "none",
-  });
-
-  const handleClick = (id) => {
-    const newData = todoData.filter((todo) => todo.id !== id);
-    setTodoData(newData);
-    console.log(newData);
-  };
 
   const handleOnChange = (e) => {
     setValue(e.target.value);
@@ -50,55 +23,61 @@ const App = () => {
       completed: false,
     };
     setTodoData([newTodo, ...todoData]);
+    localStorage.setItem("todoData", JSON.stringify([newTodo, ...todoData]));
+
     setValue("");
   };
-  const handleCompleteChange = (id) => {
-    let newTodo = todoData.map((data) => {
-      if (data.id === id) {
-        data.completed = !data.completed;
-      }
-      return data;
-    });
-    setTodoData(newTodo);
+
+  const handleClick = useCallback(
+    (id) => {
+      const newData = todoData.filter((todo) => todo.id !== id);
+      setTodoData(newData);
+      localStorage.setItem("todoData", JSON.stringify(newData));
+    },
+    [todoData]
+  );
+  const handleEnd = (result) => {
+    // result 매개변수에는 source 항목 및 대상 위치 등 드래그 이벤트에 대한 정보가 포함
+    console.log(result);
+
+    // 목적지가 없으면 함수 종료
+    if (!result.destination) return;
+
+    // 리액트 불변성을 지키기 위해 newDotoData 생성
+    const newTodoData = [...todoData];
+
+    // 1. 변경시키는 아이템을 배열에서 삭제
+    // 2. return 값으로 삭제된 아이템을 저장
+    const [reloadItem] = newTodoData.splice(result.source.index, 1);
+
+    // 원하는 자리에 reloadItem을 insert
+    newTodoData.splice(result.destination.index, 0, reloadItem);
+    setTodoData(newTodoData);
+    localStorage.setItem("todoData", JSON.stringify(newTodoData));
+  };
+  const handleAllRemove = () => {
+    setTodoData([]);
+    localStorage.setItem("todoData", JSON.stringify([]));
   };
   return (
-    <div className="container">
-      <div className="todoBlock">
-        <div className="title">
+    <div className="flex items-center justify-center w-screen h-screen bg-blue-100">
+      <div className="w-full p-6 m-4 bg-white rounded shadow-sm lg:w-3/4 lg:max-w-lg">
+        <div className="flex justify-between mb-3">
           <h1>할 일 목록</h1>
+          <button onClick={handleAllRemove}>Delete All</button>
         </div>
-        <form style={{ display: "flex" }} onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="value"
-            style={{ flex: "10", padding: "5px" }}
-            placeholder="할 일을 입력해주세요."
-            value={value}
-            onChange={handleOnChange}
-          />
-          <input
-            type="submit"
-            value="입력"
-            className="btn"
-            style={{ flex: "1" }}
-          />
-        </form>
-        {todoData.map((data) => (
-          <div style={getStyle(data.completed)} key={data.id}>
-            <input
-              type="checkbox"
-              defaultChecked={data.completed}
-              onChange={() => handleCompleteChange(data.id)}
-            />
-            {data.title}
-            <button style={btnStyle()} onClick={() => handleClick(data.id)}>
-              x
-            </button>
-          </div>
-        ))}
+        <Form
+          handleSubmit={handleSubmit}
+          value={value}
+          handleOnChange={handleOnChange}
+        />
+        <Lists
+          todoData={todoData}
+          handleEnd={handleEnd}
+          setTodoData={setTodoData}
+          handleClick={handleClick}
+        />
       </div>
     </div>
   );
-};
-
-export default App;
+}
